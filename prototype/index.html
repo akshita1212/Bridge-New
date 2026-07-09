@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bridge — Interactive Prototype</title>
+<style>
+:root{
+  --ground:#F4F6F5; --surface:#FFFFFF; --surface2:#EDF1EF; --ink:#17201E;
+  --muted:#5D6D68; --line:#DFE6E3; --accent:#0E7A6E; --accent-soft:#E1EFEC;
+  --warn:#A85A0A; --warn-soft:#F7ECDD; --ok:#1F7A3D; --ok-soft:#E2F0E6;
+  --danger:#B3362E; --danger-soft:#F6E5E3;
+  --vis-private:#5D6D68; --vis-person:#7A5AA8; --vis-group:#2C6CA8; --vis-main:#0E7A6E;
+  --shadow:0 1px 2px rgba(23,32,30,.06),0 8px 24px rgba(23,32,30,.09);
+  --shadow-lg:0 2px 6px rgba(23,32,30,.10),0 24px 64px rgba(23,32,30,.18);
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --ground:#101514; --surface:#181E1C; --surface2:#1F2724; --ink:#E5EBE8;
+    --muted:#8FA09A; --line:#2A3430; --accent:#3BB9A4; --accent-soft:#173430;
+    --warn:#E09A3E; --warn-soft:#33270F; --ok:#57BE77; --ok-soft:#12301B;
+    --danger:#E07067; --danger-soft:#371714;
+    --vis-private:#8FA09A; --vis-person:#A98BD6; --vis-group:#6BA3D6; --vis-main:#3BB9A4;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.45);
+    --shadow-lg:0 2px 6px rgba(0,0,0,.5),0 24px 64px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#101514; --surface:#181E1C; --surface2:#1F2724; --ink:#E5EBE8;
+  --muted:#8FA09A; --line:#2A3430; --accent:#3BB9A4; --accent-soft:#173430;
+  --warn:#E09A3E; --warn-soft:#33270F; --ok:#57BE77; --ok-soft:#12301B;
+  --danger:#E07067; --danger-soft:#371714;
+  --vis-private:#8FA09A; --vis-person:#A98BD6; --vis-group:#6BA3D6; --vis-main:#3BB9A4;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.45);
+  --shadow-lg:0 2px 6px rgba(0,0,0,.5),0 24px 64px rgba(0,0,0,.6);
+}
+:root[data-theme="light"]{
+  --ground:#F4F6F5; --surface:#FFFFFF; --surface2:#EDF1EF; --ink:#17201E;
+  --muted:#5D6D68; --line:#DFE6E3; --accent:#0E7A6E; --accent-soft:#E1EFEC;
+  --warn:#A85A0A; --warn-soft:#F7ECDD; --ok:#1F7A3D; --ok-soft:#E2F0E6;
+  --danger:#B3362E; --danger-soft:#F6E5E3;
+  --vis-private:#5D6D68; --vis-person:#7A5AA8; --vis-group:#2C6CA8; --vis-main:#0E7A6E;
+  --shadow:0 1px 2px rgba(23,32,30,.06),0 8px 24px rgba(23,32,30,.09);
+  --shadow-lg:0 2px 6px rgba(23,32,30,.10),0 24px 64px rgba(23,32,30,.18);
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{
+  font:14px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:var(--ground); color:var(--ink);
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11px}
+.eyebrow{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column}
+[hidden]{display:none !important}
+
+/* ---------- shared bits ---------- */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:500;transition:border-color .15s}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+:root[data-theme="dark"] .btn.primary{color:#0B1512}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#0B1512}}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.ghost:hover{background:var(--surface2);color:var(--ink)}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.02em;white-space:nowrap}
+.pill.live{background:var(--ok-soft);color:var(--ok)}
+.pill.synced{background:var(--surface2);color:var(--muted)}
+.pill.changed{background:var(--warn-soft);color:var(--warn)}
+.pill.analyzing{background:var(--accent-soft);color:var(--accent)}
+.pill.incontext{background:var(--accent-soft);color:var(--accent)}
+.pill.srconly{background:var(--surface2);color:var(--muted)}
+.dot{width:6px;height:6px;border-radius:99px;background:currentColor;flex:none}
+.vis{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.03em;border:1px dashed;cursor:pointer;background:transparent}
+.vis[data-v="private"]{color:var(--vis-private);border-color:var(--vis-private)}
+.vis[data-v="person"]{color:var(--vis-person);border-color:var(--vis-person)}
+.vis[data-v="group"]{color:var(--vis-group);border-color:var(--vis-group)}
+.vis[data-v="main"]{color:var(--vis-main);border-color:var(--vis-main);border-style:solid;background:var(--accent-soft)}
+.ev{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:6px;background:var(--surface2);color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:10.5px;border:1px solid var(--line);cursor:pointer}
+.ev:hover{color:var(--accent);border-color:var(--accent)}
+.ev svg{flex:none}
+.avatar{width:22px;height:22px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;color:#fff;flex:none}
+.av-mk{background:#7A5AA8}.av-so{background:#2C6CA8}.av-pn{background:#A85A0A}.av-you{background:var(--accent)}
+
+/* ---------- home ---------- */
+#home main{flex:1;overflow:auto;padding:0 48px 64px}
+.home-wrap{max-width:1060px;margin:0 auto}
+.home-hero{padding:72px 0 40px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.wordmark{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.01em}
+.wordmark svg{display:block}
+.home-hero h1{font-size:30px;font-weight:700;letter-spacing:-.02em;text-wrap:balance}
+.home-hero p{color:var(--muted);margin-top:8px;max-width:52ch}
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:16px;margin-top:20px}
+.file-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0;text-align:left;overflow:hidden;transition:border-color .15s,transform .15s;box-shadow:var(--shadow)}
+.file-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.file-thumb{height:104px;background:var(--surface2);position:relative;border-bottom:1px solid var(--line)}
+.file-thumb.new{display:flex;align-items:center;justify-content:center;color:var(--accent);background:var(--accent-soft)}
+.file-meta{padding:12px 14px}
+.file-meta b{display:block;font-size:13.5px;font-weight:600}
+.file-meta span{color:var(--muted);font-size:12px}
+.thumb-node{position:absolute;border-radius:4px;background:var(--surface);border:1px solid var(--line)}
+
+/* ---------- bridge shell ---------- */
+#topbar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--line);z-index:40;position:relative}
+#topbar .fname{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:8px}
+#topbar .fname .eyebrow{margin-top:1px}
+.tabs{display:flex;gap:2px;background:var(--surface2);border-radius:9px;padding:3px;margin-left:18px}
+.tab{padding:5px 16px;border-radius:7px;font-weight:500;color:var(--muted);font-size:13px}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow)}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.badge{min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--warn);color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.avstack{display:flex}.avstack .avatar{margin-left:-6px;border:2px solid var(--surface)}
+#stage{flex:1;position:relative;overflow:hidden}
+
+/* ---------- empty state ---------- */
+#emptyView{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:
+  radial-gradient(ellipse 60% 50% at 50% 40%, var(--accent-soft) 0%, transparent 70%), var(--ground)}
+.drop{width:min(560px,90%);text-align:center}
+.drop-zone{border:1.5px dashed var(--line);border-radius:16px;padding:56px 32px 44px;background:color-mix(in srgb,var(--surface) 62%,transparent);transition:border-color .2s}
+.drop-zone:hover{border-color:var(--accent)}
+.drop h2{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:18px;text-wrap:balance}
+.drop p{color:var(--muted);margin-top:6px}
+.connects{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+.connects .btn{font-size:12.5px;padding:6px 12px}
+.demo-cta{margin-top:26px}
+
+/* ---------- map ---------- */
+#mapView{position:absolute;inset:0;overflow:auto}
+.map-wrap{max-width:1120px;margin:0 auto;padding:28px 40px 80px}
+.map-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.map-head h2{font-size:21px;font-weight:700;letter-spacing:-.02em}
+.src-rail{display:flex;gap:10px;overflow-x:auto;padding:16px 2px 6px;scrollbar-width:thin}
+.src-chip{flex:none;display:flex;flex-direction:column;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px;min-width:196px;box-shadow:var(--shadow);text-align:left}
+.src-chip.attn{border-color:var(--warn)}
+.src-top{display:flex;align-items:center;gap:8px}
+.src-ic{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex:none;font-family:ui-monospace,Menlo,monospace;font-size:9px;font-weight:700;letter-spacing:.02em}
+.ic-pdf{background:var(--danger-soft);color:var(--danger)}
+.ic-gdoc{background:var(--vis-group);color:#fff}
+.ic-gsheet{background:var(--ok-soft);color:var(--ok)}
+.ic-figma{background:var(--vis-person);color:#fff}
+.ic-audio{background:var(--warn-soft);color:var(--warn)}
+.src-top b{font-size:12.5px;font-weight:600;line-height:1.3}
+.src-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.review-btn{font-size:11px;font-weight:600;color:var(--warn);padding:3px 9px;border:1px solid var(--warn);border-radius:6px;margin-left:auto}
+.review-btn:hover{background:var(--warn-soft)}
+.map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:22px}
+.map-sec{min-width:0}
+.map-sec>.eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.map-sec>.eyebrow .n{color:var(--accent)}
+.mcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;box-shadow:var(--shadow);margin-bottom:10px;transition:box-shadow .3s,border-color .3s}
+.mcard p{font-size:13.5px}
+.mcard .evrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.mcard.flash{border-color:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+.mcard.risk{border-left:3px solid var(--danger)}
+.mcard.decision{border-left:3px solid var(--accent)}
+.mcard.q{border-left:3px solid var(--vis-group)}
+.upd{display:inline-flex;margin-top:8px;padding:2px 8px;border-radius:6px;background:var(--warn-soft);color:var(--warn);font-family:ui-monospace,Menlo,monospace;font-size:10.5px}
+.worksig{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:11px 14px;margin-bottom:8px;width:100%;text-align:left;box-shadow:var(--shadow)}
+.worksig:hover{border-color:var(--accent)}
+.worksig b{font-size:13px;font-weight:600;flex:1}
+.skel{height:76px;border-radius:var(--r);background:linear-gradient(100deg,var(--surface2) 40%,var(--surface) 50%,var(--surface2) 60%);background-size:200% 100%;animation:sk 1.1s infinite linear;margin-bottom:10px}
+@keyframes sk{to{background-position:-200% 0}}
+@media (prefers-reduced-motion: reduce){.skel{animation:none}}
+
+/* ---------- workspace ---------- */
+#wsView{position:absolute;inset:0;overflow:hidden;background:var(--ground)}
+#wsCanvas{position:absolute;inset:0;cursor:grab;background-image:radial-gradient(color-mix(in srgb,var(--muted) 26%,transparent) 1px,transparent 1px);background-size:26px 26px}
+#wsCanvas.panning{cursor:grabbing}
+#wsInner{position:absolute;left:0;top:0;width:2600px;height:1700px;transform-origin:0 0}
+#edges{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+#edges line{stroke:color-mix(in srgb,var(--muted) 45%,transparent);stroke-width:1.5;stroke-dasharray:5 5}
+.node{position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);width:250px;user-select:none;touch-action:none}
+.node.dragging{box-shadow:var(--shadow-lg);z-index:30 !important;cursor:grabbing}
+.node-head{display:flex;align-items:center;gap:8px;padding:9px 11px;border-bottom:1px solid var(--line);cursor:grab}
+.node-head .eyebrow{flex:1}
+.node-body{padding:11px 13px;font-size:13px}
+.node-body p+p{margin-top:8px}
+.node-foot{display:flex;align-items:center;gap:6px;padding:8px 11px;border-top:1px solid var(--line);flex-wrap:wrap}
+.node.note{background:color-mix(in srgb,var(--warn-soft) 55%,var(--surface));width:224px}
+.node.note .node-head,.node.note .node-foot{border-color:color-mix(in srgb,var(--warn) 18%,transparent)}
+.node.qnode{border-left:3px solid var(--vis-group)}
+.node.output{width:288px;border-color:var(--accent)}
+.frame{position:absolute;border:1.5px solid color-mix(in srgb,var(--vis-group) 55%,transparent);border-radius:14px;background:color-mix(in srgb,var(--vis-group) 5%,transparent)}
+.frame-label{position:absolute;top:-24px;left:8px;display:flex;gap:8px;align-items:center}
+.frame-label .eyebrow{color:var(--vis-group)}
+.player{display:flex;align-items:center;gap:9px;background:var(--surface2);border-radius:8px;padding:8px 10px;margin-top:9px}
+.play{width:28px;height:28px;border-radius:99px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+:root[data-theme="dark"] .play{color:#0B1512}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .play{color:#0B1512}}
+.track{flex:1;height:4px;border-radius:99px;background:var(--line);position:relative}
+.track i{position:absolute;left:0;top:0;bottom:0;width:34%;background:var(--accent);border-radius:99px}
+.chat-line{display:flex;gap:7px;margin-top:8px;font-size:12.5px}
+.chat-line .who{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--muted);margin-top:2px;flex:none;width:26px}
+#wsTools{position:absolute;left:16px;bottom:16px;display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:5px;box-shadow:var(--shadow);z-index:20}
+#wsTools .btn{border:0;padding:6px 10px;font-size:12.5px}
+#genWrap{position:absolute;right:16px;bottom:16px;z-index:20}
+#genMenu{position:absolute;bottom:46px;right:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-lg);padding:6px;width:224px}
+#genMenu .eyebrow{padding:6px 10px 4px}
+#genMenu button{display:block;width:100%;text-align:left;padding:7px 10px;border-radius:7px;font-size:13px}
+#genMenu button:hover{background:var(--surface2)}
+.ws-hint{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:5px 14px;font-size:12px;color:var(--muted);box-shadow:var(--shadow);z-index:20;white-space:nowrap}
+
+/* ---------- drawer / popover / modal ---------- */
+#workDrawer{position:absolute;top:0;right:0;bottom:0;width:min(400px,92%);background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--shadow-lg);z-index:60;display:flex;flex-direction:column;transform:translateX(102%);transition:transform .22s ease}
+#workDrawer.open{transform:none}
+@media (prefers-reduced-motion: reduce){#workDrawer{transition:none}}
+.drawer-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.drawer-head b{font-size:14px}
+.drawer-body{flex:1;overflow:auto;padding:14px 16px}
+.task{border:1px solid var(--line);border-radius:var(--r);padding:12px 13px;margin-bottom:10px;background:var(--ground)}
+.task-top{display:flex;align-items:flex-start;gap:9px}
+.task-top b{font-size:13px;font-weight:600;flex:1;line-height:1.4}
+.tstat{flex:none}
+.task .who{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12px;color:var(--muted)}
+.task .evrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.blocker{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:6px;background:var(--danger-soft);color:var(--danger);font-family:ui-monospace,Menlo,monospace;font-size:10.5px}
+.task-foot{display:flex;justify-content:space-between;align-items:center;margin-top:9px}
+.drawer-note{font-size:11.5px;color:var(--muted);padding:10px 16px;border-top:1px solid var(--line)}
+#activityPop{position:absolute;top:46px;right:12px;width:320px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);z-index:70;overflow:hidden}
+#activityPop .drawer-head{padding:11px 14px}
+#actList{max-height:340px;overflow:auto;padding:6px 0}
+.act{display:flex;gap:10px;padding:8px 14px;font-size:12.5px}
+.act .t{color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:10.5px;flex:none;width:52px;margin-top:2px;text-align:right}
+.act .k{width:7px;height:7px;border-radius:99px;margin-top:6px;flex:none;background:var(--muted)}
+.act .k.warn{background:var(--warn)}.act .k.ok{background:var(--ok)}.act .k.acc{background:var(--accent)}
+#scrim{position:absolute;inset:0;background:rgba(10,16,14,.45);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{width:min(560px,100%);background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden}
+.modal-head{padding:18px 22px 0}
+.modal-head h3{font-size:17px;font-weight:700;letter-spacing:-.01em;margin-top:8px;text-wrap:balance}
+.modal-body{padding:14px 22px 4px}
+.diff{background:var(--ground);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0}
+.diff .eyebrow{margin-bottom:6px}
+.diff p{font-size:13px}
+.diff .delta{font-family:ui-monospace,Menlo,monospace;font-size:12px;margin-top:6px}
+.delta .up{color:var(--danger)}.delta .down{color:var(--ok)}
+.impact{display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;margin-top:6px;font-size:12.5px;background:var(--surface)}
+.impact .eyebrow{flex:none}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:16px 22px 20px;flex-wrap:wrap}
+.modal-foot .note{margin-right:auto;font-size:11.5px;color:var(--muted);max-width:24ch}
+.toast{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:9px 18px;border-radius:99px;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);z-index:90}
+
+/* helper svg icon default */
+svg{vertical-align:middle}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ======================= HOME ======================= -->
+<section class="screen" id="home">
+  <main>
+    <div class="home-wrap">
+      <div class="home-hero">
+        <div>
+          <div class="wordmark" style="margin-bottom:26px">
+            <svg width="26" height="18" viewBox="0 0 26 18" fill="none" aria-hidden="true">
+              <path d="M2 16 C2 7, 24 7, 24 16" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"/>
+              <circle cx="2" cy="16" r="2" fill="var(--accent)"/><circle cx="24" cy="16" r="2" fill="var(--accent)"/>
+              <line x1="13" y1="9.4" x2="13" y2="16" stroke="var(--accent)" stroke-width="2"/>
+            </svg>
+            bridge
+          </div>
+          <h1>Drop anything. Bridge makes it understandable.</h1>
+          <p>Collect scattered sources, see a generated Map, think privately on the Workspace canvas, and act without losing the evidence.</p>
+        </div>
+        <button class="btn ghost mono" id="themeBtn" type="button">theme</button>
+      </div>
+      <div class="eyebrow">Recent files</div>
+      <div class="files">
+        <button class="file-card" data-open="new" type="button">
+          <div class="file-thumb new">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M14 6v16M6 14h16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </div>
+          <div class="file-meta"><b>New Bridge</b><span>Start from a blank file</span></div>
+        </button>
+        <button class="file-card" data-open="demo" type="button">
+          <div class="file-thumb" aria-hidden="true">
+            <span class="thumb-node" style="left:14px;top:16px;width:58px;height:34px"></span>
+            <span class="thumb-node" style="left:86px;top:28px;width:70px;height:44px;border-color:var(--accent)"></span>
+            <span class="thumb-node" style="left:170px;top:14px;width:44px;height:30px"></span>
+            <span class="thumb-node" style="left:44px;top:62px;width:80px;height:28px"></span>
+          </div>
+          <div class="file-meta"><b>Atlas onboarding revamp</b><span>5 sources · edited 2h ago</span></div>
+        </button>
+        <button class="file-card" data-open="demo" type="button">
+          <div class="file-thumb" aria-hidden="true">
+            <span class="thumb-node" style="left:22px;top:22px;width:64px;height:40px"></span>
+            <span class="thumb-node" style="left:104px;top:40px;width:52px;height:32px"></span>
+          </div>
+          <div class="file-meta"><b>Vendor evaluation — CDP</b><span>3 sources · edited yesterday</span></div>
+        </button>
+        <button class="file-card" data-open="demo" type="button">
+          <div class="file-thumb" aria-hidden="true">
+            <span class="thumb-node" style="left:30px;top:18px;width:48px;height:48px"></span>
+            <span class="thumb-node" style="left:96px;top:26px;width:84px;height:30px;border-color:var(--accent)"></span>
+          </div>
+          <div class="file-meta"><b>Thesis reading — spatial UI</b><span>8 sources · edited 4d ago</span></div>
+        </button>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- ======================= BRIDGE ======================= -->
+<section class="screen" id="bridge" hidden>
+  <header id="topbar">
+    <button class="btn ghost" id="backBtn" type="button" aria-label="Back to files">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9 2 4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="fname"><span id="fileTitle">Untitled Bridge</span><span class="eyebrow" id="fileState">blank</span></div>
+    <nav class="tabs" id="modeTabs" hidden>
+      <button class="tab" data-view="map" aria-selected="true" type="button">Map</button>
+      <button class="tab" data-view="ws" aria-selected="false" type="button">Workspace</button>
+    </nav>
+    <div class="top-right">
+      <button class="btn ghost" id="workBtn" type="button" hidden>Context Work <span class="badge" id="workBadge">4</span></button>
+      <button class="btn ghost" id="actBtn" type="button" hidden>Activity</button>
+      <div class="avstack" aria-label="Collaborators">
+        <span class="avatar av-you">A</span><span class="avatar av-mk">MK</span><span class="avatar av-so">SO</span>
+      </div>
+      <button class="btn primary" type="button" id="shareBtn">Share</button>
+    </div>
+  </header>
+
+  <div id="stage">
+
+    <!-- blank start -->
+    <div id="emptyView">
+      <div class="drop">
+        <div class="drop-zone">
+          <svg width="34" height="24" viewBox="0 0 26 18" fill="none" aria-hidden="true">
+            <path d="M2 16 C2 7, 24 7, 24 16" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="2" cy="16" r="2" fill="var(--accent)"/><circle cx="24" cy="16" r="2" fill="var(--accent)"/>
+          </svg>
+          <h2>Drop anything.</h2>
+          <p>Files, live docs, links, recordings — Bridge builds the Map as you add.</p>
+          <div class="connects">
+            <button class="btn" type="button">Upload files</button>
+            <button class="btn" type="button">Google Drive</button>
+            <button class="btn" type="button">Microsoft 365</button>
+            <button class="btn" type="button">Figma</button>
+            <button class="btn" type="button">Paste a link</button>
+          </div>
+        </div>
+        <div class="demo-cta">
+          <button class="btn primary" id="demoBtn" type="button">Load the demo project instead</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- map -->
+    <div id="mapView" hidden>
+      <div class="map-wrap">
+        <div class="map-head">
+          <h2>What Bridge understands so far</h2>
+          <span class="eyebrow">Map · adaptive template: research synthesis</span>
+        </div>
+
+        <div class="src-rail" id="srcRail">
+          <div class="src-chip">
+            <div class="src-top"><span class="src-ic ic-pdf">PDF</span><b>User research — Q2 interviews</b></div>
+            <div class="src-sub"><span class="pill synced"><span class="dot"></span>Synced</span><span class="pill incontext">In context</span></div>
+          </div>
+          <div class="src-chip">
+            <div class="src-top"><span class="src-ic ic-gdoc">DOC</span><b>Onboarding PRD</b></div>
+            <div class="src-sub"><span class="pill live"><span class="dot"></span>Live</span><span class="pill incontext">In context</span></div>
+          </div>
+          <div class="src-chip attn" id="budgetChip">
+            <div class="src-top"><span class="src-ic ic-gsheet">SHT</span><b>Q3 budget</b>
+              <button class="review-btn" id="reviewBtn" type="button">Review</button></div>
+            <div class="src-sub" id="budgetStatus"><span class="pill live"><span class="dot"></span>Live</span><span class="pill changed">Changed · 2h ago</span></div>
+          </div>
+          <div class="src-chip">
+            <div class="src-top"><span class="src-ic ic-figma">FIG</span><b>Onboarding flow v3</b></div>
+            <div class="src-sub"><span class="pill live"><span class="dot"></span>Live</span><span class="pill incontext">In context</span></div>
+          </div>
+          <div class="src-chip">
+            <div class="src-top"><span class="src-ic ic-audio">AUD</span><b>Client kickoff call</b></div>
+            <div class="src-sub"><span class="pill synced"><span class="dot"></span>Transcribed</span><span class="pill incontext">In context</span></div>
+          </div>
+        </div>
+
+        <div class="map-grid" id="mapGrid">
+          <div class="map-sec">
+            <div class="eyebrow">Key findings <span class="n">3</span></div>
+            <div class="mcard"><p>Drop-off concentrates at step 3 — account connect. 62% of churned trials never connected a single source.</p>
+              <div class="evrow"><button class="ev" type="button">⌕ research.pdf · p.14</button><button class="ev" type="button">⌕ kickoff call · 12:40</button></div></div>
+            <div class="mcard"><p>Users describe setup as “another dashboard to maintain.” The gap is motivation, not usability.</p>
+              <div class="evrow"><button class="ev" type="button">⌕ research.pdf · p.9</button></div></div>
+            <div class="mcard"><p>The PRD and the Figma flow disagree on the default visibility of a new workspace.</p>
+              <div class="evrow"><button class="ev" type="button">⌕ PRD · §4</button><button class="ev" type="button">⌕ figma · Settings frame</button></div></div>
+          </div>
+          <div class="map-sec">
+            <div class="eyebrow">Open questions <span class="n">2</span></div>
+            <div class="mcard q"><p>Do we gate source connection behind a first value moment, or front-load it?</p>
+              <div class="evrow"><button class="ev" type="button">⌕ research.pdf · p.14</button></div></div>
+            <div class="mcard q"><p>Which plan tiers include live connectors at launch?</p>
+              <div class="evrow"><button class="ev" type="button">⌕ PRD · §7</button></div></div>
+            <div class="eyebrow" style="margin-top:18px">Decisions <span class="n">2</span></div>
+            <div class="mcard decision"><p>Blank-file start confirmed; the setup wizard is out of scope.</p>
+              <div class="evrow"><button class="ev" type="button">⌕ PRD · §2</button></div></div>
+            <div class="mcard decision"><p>Google Drive connector ships first; Microsoft 365 follows in Q4.</p>
+              <div class="evrow"><button class="ev" type="button">⌕ kickoff call · 31:05</button></div></div>
+          </div>
+          <div class="map-sec">
+            <div class="eyebrow">Risks <span class="n">2</span></div>
+            <div class="mcard risk" id="riskBudget"><p>Paid-media spend may crowd out the contractor budget for video explainers.</p>
+              <div class="evrow"><button class="ev" type="button">⌕ Q3 budget · rows 12–18</button></div></div>
+            <div class="mcard risk"><p>Flow v3 OAuth scopes have not been reviewed by security.</p>
+              <div class="evrow"><button class="ev" type="button">⌕ figma · Connect frame</button></div></div>
+            <div class="eyebrow" style="margin-top:18px">Context work <span class="n" id="sigCount">4</span></div>
+            <button class="worksig" data-opendrawer type="button"><span class="avatar av-mk">MK</span><b>Confirm channel mix for launch</b><span class="pill changed">needs review</span></button>
+            <button class="worksig" data-opendrawer type="button"><span class="avatar av-so">SO</span><b>Resolve visibility default conflict</b><span class="pill analyzing">in progress</span></button>
+            <button class="worksig" data-opendrawer type="button"><span class="avatar av-pn">PN</span><b>Security review of OAuth scopes</b><span class="pill synced">not started</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- workspace -->
+    <div id="wsView" hidden>
+      <div class="ws-hint">Private canvas — drag nodes, drag the background to pan. Click a visibility badge to change who sees an item.</div>
+      <div id="wsCanvas">
+        <div id="wsInner">
+          <svg id="edges" width="2600" height="1700" aria-hidden="true">
+            <line id="e1"/><line id="e2"/><line id="e3"/>
+          </svg>
+
+          <div class="frame" id="frame1" style="left:560px;top:120px;width:600px;height:430px">
+            <div class="frame-label"><span class="eyebrow">Frame · Activation exploration</span>
+              <button class="vis" data-v="private" type="button">private</button></div>
+          </div>
+
+          <div class="node" id="n-src" style="left:120px;top:180px" data-edges="e1">
+            <div class="node-head"><span class="src-ic ic-pdf">PDF</span><span class="eyebrow">Source</span>
+              <button class="vis" data-v="main" type="button">main context</button></div>
+            <div class="node-body"><p><b>User research — Q2 interviews</b></p>
+              <p style="color:var(--muted);font-size:12.5px">28 pages · analyzed 3d ago · 14 evidence links</p></div>
+            <div class="node-foot"><span class="pill incontext">In context</span><span class="pill synced">Synced</span></div>
+          </div>
+
+          <div class="node note" id="n-note1" style="left:600px;top:170px" data-edges="e1,e2">
+            <div class="node-head"><span class="eyebrow">Note</span>
+              <button class="vis" data-v="private" type="button">private</button></div>
+            <div class="node-body"><p>Hypothesis: it’s a motivation gap, not a UX gap. Trial users need a generated “aha” within 2 minutes.</p></div>
+          </div>
+
+          <div class="node note" id="n-note2" style="left:640px;top:392px">
+            <div class="node-head"><span class="eyebrow">Note</span>
+              <button class="vis" data-v="private" type="button">private</button></div>
+            <div class="node-body"><p>What if the Map renders from a single source immediately — before full analysis finishes?</p></div>
+          </div>
+
+          <div class="node qnode" id="n-q" style="left:890px;top:230px" data-edges="e2">
+            <div class="node-head"><span class="eyebrow">Question</span>
+              <button class="vis" data-v="person" type="button">Maya K</button></div>
+            <div class="node-body"><p>Gate connectors behind a value moment? Maya — your funnel read?</p></div>
+            <div class="node-foot"><span class="avatar av-mk">MK</span><span class="mono" style="color:var(--muted)">waiting on reply</span></div>
+          </div>
+
+          <div class="node" id="n-ai" style="left:170px;top:470px" data-edges="e3">
+            <div class="node-head"><span class="eyebrow">AI session · grounded on 2 sources</span>
+              <button class="vis" data-v="private" type="button">private</button></div>
+            <div class="node-body">
+              <div class="chat-line"><span class="who">you</span><p>Why do users stall at account connect?</p></div>
+              <div class="chat-line"><span class="who">ai</span><p>Interviews point to unclear payoff, not friction — 9 of 14 mention “not sure what I get.” <button class="ev" type="button">⌕ p.14</button></p></div>
+            </div>
+            <div class="node-foot"><button class="btn ghost mono" type="button">continue session</button></div>
+          </div>
+
+          <div class="node output" id="n-out1" style="left:1280px;top:300px" data-edges="e3">
+            <div class="node-head"><span class="eyebrow">Generated · audio explainer</span>
+              <button class="vis" data-v="main" type="button">main context</button></div>
+            <div class="node-body">
+              <p><b>Onboarding research — 6 min brief</b></p>
+              <div class="player">
+                <button class="play" type="button" aria-label="Play">
+                  <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" aria-hidden="true"><path d="M0 0l10 6-10 6z"/></svg>
+                </button>
+                <div class="track"><i></i></div><span class="mono" style="color:var(--muted)">2:04</span>
+              </div>
+              <div class="evrow" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
+                <button class="ev" type="button">⌕ research.pdf</button><button class="ev" type="button">⌕ kickoff call</button><button class="ev" type="button">⌕ PRD</button>
+              </div>
+            </div>
+            <div class="node-foot"><button class="btn ghost mono" type="button">join interactive session</button><button class="btn ghost mono" type="button">regenerate</button></div>
+          </div>
+
+        </div>
+      </div>
+      <div id="wsTools">
+        <button class="btn" data-zoom="-1" type="button" aria-label="Zoom out">−</button>
+        <button class="btn mono" id="zoomLabel" type="button">100%</button>
+        <button class="btn" data-zoom="1" type="button" aria-label="Zoom in">+</button>
+      </div>
+      <div id="genWrap">
+        <div id="genMenu" hidden>
+          <div class="eyebrow">Generate from this Bridge</div>
+          <button data-gen="Audio explainer" type="button">Audio explainer</button>
+          <button data-gen="Video explainer" type="button">Video explainer</button>
+          <button data-gen="Combined document" type="button">Combined document</button>
+          <button data-gen="Handoff brief" type="button">Handoff brief</button>
+          <button data-gen="Question list" type="button">Question list</button>
+        </div>
+        <button class="btn primary" id="genBtn" type="button">✦ Generate</button>
+      </div>
+    </div>
+
+    <!-- context work drawer -->
+    <aside id="workDrawer" aria-label="Context Work">
+      <div class="drawer-head"><b>Context Work</b><span class="eyebrow">around the context, not above it</span>
+        <button class="btn ghost" id="drawerClose" type="button" style="margin-left:auto">✕</button></div>
+      <div class="drawer-body">
+        <div class="task">
+          <div class="task-top"><b>Confirm channel mix for launch</b><span class="pill changed tstat">needs review</span></div>
+          <div class="who"><span class="avatar av-mk">MK</span>Maya K</div>
+          <div class="evrow"><button class="ev" type="button">⌕ Q3 budget · rows 12–18</button><button class="ev" type="button">⌕ risk · paid media</button></div>
+          <div class="task-foot"><span class="mono" style="color:var(--muted)">from a changed source</span><button class="vis" data-v="group" type="button">team</button></div>
+        </div>
+        <div class="task">
+          <div class="task-top"><b>Resolve visibility default conflict between PRD §4 and flow v3</b><span class="pill analyzing tstat">in progress</span></div>
+          <div class="who"><span class="avatar av-so">SO</span>Sam O</div>
+          <div class="evrow"><button class="ev" type="button">⌕ PRD · §4</button><button class="ev" type="button">⌕ figma · Settings</button></div>
+          <div class="task-foot"><span class="blocker">⛔ blocked by security review</span><button class="vis" data-v="main" type="button">main context</button></div>
+        </div>
+        <div class="task">
+          <div class="task-top"><b>Security review of OAuth scopes in flow v3</b><span class="pill synced tstat">not started</span></div>
+          <div class="who"><span class="avatar av-pn">PN</span>Priya N</div>
+          <div class="evrow"><button class="ev" type="button">⌕ figma · Connect frame</button><button class="ev" type="button">⌕ risk · OAuth</button></div>
+          <div class="task-foot"><span class="mono" style="color:var(--muted)">blocks 1 task</span><button class="vis" data-v="main" type="button">main context</button></div>
+        </div>
+        <div class="task">
+          <div class="task-top"><b>Draft follow-up questions for churned trial users</b><span class="pill synced tstat">not started</span></div>
+          <div class="who"><span class="avatar av-you">A</span>You</div>
+          <div class="evrow"><button class="ev" type="button">⌕ research.pdf · p.14</button><button class="ev" type="button">⌕ note · motivation gap</button></div>
+          <div class="task-foot"><span class="mono" style="color:var(--muted)">only you can see this</span><button class="vis" data-v="private" type="button">private</button></div>
+        </div>
+      </div>
+      <div class="drawer-note">Every task keeps its origin: what needs doing, who owns it, and the evidence that created it.</div>
+    </aside>
+
+    <!-- activity popover -->
+    <div id="activityPop" hidden>
+      <div class="drawer-head"><b>Activity</b><span class="eyebrow">history, not a mode</span>
+        <button class="btn ghost" id="actClose" type="button" style="margin-left:auto">✕</button></div>
+      <div id="actList">
+        <div class="act"><span class="t">2h</span><span class="k warn"></span><p>Q3 budget changed — 14 cells across rows 12–18. Awaiting review.</p></div>
+        <div class="act"><span class="t">1d</span><span class="k acc"></span><p>Audio explainer generated from 3 sources.</p></div>
+        <div class="act"><span class="t">2d</span><span class="k"></span><p>Onboarding flow v3 connected from Figma.</p></div>
+        <div class="act"><span class="t">3d</span><span class="k ok"></span><p>PRD update approved into main context; Map regenerated.</p></div>
+      </div>
+    </div>
+
+    <!-- change gate modal -->
+    <div id="scrim" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+        <div class="modal-head">
+          <span class="eyebrow" style="color:var(--warn)">Connected source changed · review before it enters shared truth</span>
+          <h3 id="gateTitle">Q3 budget changed 2 hours ago</h3>
+        </div>
+        <div class="modal-body">
+          <div class="diff">
+            <div class="eyebrow">What changed</div>
+            <p>14 cells updated across rows 12–18 by Maya K.</p>
+            <p class="delta"><span class="up">▲ Paid media $48k → $67k (+40%)</span><br><span class="down">▼ Events cut to offset (−$19k)</span></p>
+          </div>
+          <div class="eyebrow" style="margin:12px 0 4px">Likely affected</div>
+          <div class="impact"><span class="eyebrow" style="color:var(--danger)">Risk</span><span>Paid-media spend may crowd out the video-explainer budget</span></div>
+          <div class="impact"><span class="eyebrow" style="color:var(--vis-group)">Task</span><span>Confirm channel mix for launch — Maya K</span></div>
+        </div>
+        <div class="modal-foot">
+          <span class="note">Nothing is merged until you decide.</span>
+          <button class="btn" id="gateKeep" type="button">Keep as source only</button>
+          <button class="btn primary" id="gatePromote" type="button">Add to main context</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(s){ return document.querySelector(s); };
+  var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
+
+  /* ---------- theme toggle ---------- */
+  $("#themeBtn").addEventListener("click", function(){
+    var r = document.documentElement;
+    var dark = r.dataset.theme ? r.dataset.theme === "dark"
+      : matchMedia("(prefers-color-scheme: dark)").matches;
+    r.dataset.theme = dark ? "light" : "dark";
+  });
+
+  /* ---------- routing ---------- */
+  var populated = false;
+  function showBridge(demo){
+    $("#home").hidden = true; $("#bridge").hidden = false;
+    if (demo && !populated) populateDemo(false);
+    else if (!populated) setBlank();
+  }
+  function setBlank(){
+    $("#fileTitle").textContent = "Untitled Bridge";
+    $("#fileState").textContent = "blank";
+    $("#emptyView").hidden = false; $("#mapView").hidden = true; $("#wsView").hidden = true;
+    $("#modeTabs").hidden = true; $("#workBtn").hidden = true; $("#actBtn").hidden = true;
+  }
+  $$("[data-open]").forEach(function(b){
+    b.addEventListener("click", function(){ showBridge(b.dataset.open === "demo"); });
+  });
+  $("#backBtn").addEventListener("click", function(){
+    $("#bridge").hidden = true; $("#home").hidden = false; closeAll();
+  });
+
+  /* connect buttons + demo load */
+  $$(".connects .btn").forEach(function(b){
+    b.addEventListener("click", function(){ toast(b.textContent.trim() + " — connector stub in this prototype. Try the demo project."); });
+  });
+  $("#demoBtn").addEventListener("click", function(){ populateDemo(true); });
+
+  function populateDemo(withShimmer){
+    populated = true;
+    $("#fileTitle").textContent = "Atlas onboarding revamp";
+    $("#fileState").textContent = "5 sources";
+    $("#emptyView").hidden = true; $("#modeTabs").hidden = false;
+    $("#workBtn").hidden = false; $("#actBtn").hidden = false;
+    switchView("map");
+    if (withShimmer && !matchMedia("(prefers-reduced-motion: reduce)").matches){
+      var grid = $("#mapGrid"); grid.style.visibility = "hidden";
+      var rail = $("#srcRail"); rail.style.visibility = "hidden";
+      var wrap = $(".map-wrap");
+      var skel = document.createElement("div");
+      skel.id = "skelBlock";
+      skel.innerHTML = '<div class="eyebrow" style="margin:16px 0 10px">Generating your Map…</div>' +
+        '<div class="skel"></div><div class="skel" style="width:80%"></div><div class="skel" style="width:64%"></div>';
+      wrap.insertBefore(skel, rail);
+      setTimeout(function(){
+        skel.remove(); grid.style.visibility = ""; rail.style.visibility = "";
+        toast("Map generated from 5 sources");
+      }, 1100);
+    }
+  }
+
+  /* ---------- tabs ---------- */
+  function switchView(v){
+    $$(".tab").forEach(function(t){ t.setAttribute("aria-selected", String(t.dataset.view === v)); });
+    $("#mapView").hidden = v !== "map";
+    $("#wsView").hidden = v !== "ws";
+    if (v === "ws") requestAnimationFrame(drawEdges);
+  }
+  $$(".tab").forEach(function(t){ t.addEventListener("click", function(){ switchView(t.dataset.view); }); });
+
+  /* ---------- drawer / activity ---------- */
+  function closeAll(){ $("#workDrawer").classList.remove("open"); $("#activityPop").hidden = true; $("#scrim").hidden = true; $("#genMenu").hidden = true; }
+  $("#workBtn").addEventListener("click", function(){ $("#activityPop").hidden = true; $("#workDrawer").classList.toggle("open"); });
+  $("#drawerClose").addEventListener("click", function(){ $("#workDrawer").classList.remove("open"); });
+  $$("[data-opendrawer]").forEach(function(b){ b.addEventListener("click", function(){ $("#workDrawer").classList.add("open"); }); });
+  $("#actBtn").addEventListener("click", function(){ $("#workDrawer").classList.remove("open"); $("#activityPop").hidden = !$("#activityPop").hidden; });
+  $("#actClose").addEventListener("click", function(){ $("#activityPop").hidden = true; });
+  $("#shareBtn").addEventListener("click", function(){ toast("Sharing scopes: private · person · group · main context"); });
+
+  function logActivity(text, kind){
+    var el = document.createElement("div");
+    el.className = "act";
+    el.innerHTML = '<span class="t">now</span><span class="k ' + (kind || "") + '"></span><p></p>';
+    el.querySelector("p").textContent = text;
+    var list = $("#actList");
+    list.insertBefore(el, list.firstChild);
+  }
+
+  /* ---------- change gate ---------- */
+  $("#reviewBtn").addEventListener("click", function(){ $("#scrim").hidden = false; });
+  $("#scrim").addEventListener("click", function(e){ if (e.target === this) this.hidden = true; });
+  function resolveGate(promote){
+    $("#scrim").hidden = true;
+    var st = $("#budgetStatus");
+    $("#budgetChip").classList.remove("attn");
+    $("#reviewBtn").remove();
+    if (promote){
+      st.innerHTML = '<span class="pill live"><span class="dot"></span>Live</span><span class="pill incontext">Added to context</span>';
+      var risk = $("#riskBudget");
+      risk.classList.add("flash");
+      if (!risk.querySelector(".upd")){
+        var u = document.createElement("span"); u.className = "upd";
+        u.textContent = "updated from Q3 budget · just now"; risk.appendChild(u);
+      }
+      setTimeout(function(){ risk.classList.remove("flash"); }, 2400);
+      logActivity("Q3 budget change approved into main context. Risk card and 1 task updated.", "ok");
+      toast("Added to main context — Map updated");
+    } else {
+      st.innerHTML = '<span class="pill live"><span class="dot"></span>Live</span><span class="pill srconly">Source only</span>';
+      logActivity("Q3 budget change kept as source only. Shared context unchanged.");
+      toast("Kept as source only — shared truth unchanged");
+    }
+  }
+  $("#gatePromote").addEventListener("click", function(){ resolveGate(true); });
+  $("#gateKeep").addEventListener("click", function(){ resolveGate(false); });
+
+  /* ---------- visibility cycling ---------- */
+  var visOrder = ["private","person","group","main"];
+  var visLabel = { private:"private", person:"Maya K", group:"team", main:"main context" };
+  document.addEventListener("click", function(e){
+    var v = e.target.closest(".vis");
+    if (!v) return;
+    var next = visOrder[(visOrder.indexOf(v.dataset.v) + 1) % visOrder.length];
+    v.dataset.v = next; v.textContent = visLabel[next];
+    if (next === "main"){ toast("Promoted to main context — visible to everyone in this Bridge"); logActivity("An item was promoted to main context.", "acc"); }
+  });
+
+  /* ---------- generic stub taps ---------- */
+  document.addEventListener("click", function(e){
+    if (e.target.closest(".ev")) toast("Provenance: this would open the exact page, cell, frame, or timestamp.");
+    if (e.target.closest(".play")) toast("Audio playback is stubbed in this prototype.");
+  });
+
+  /* ---------- workspace: pan, zoom, drag, edges ---------- */
+  var pan = { x: -40, y: -60 }, zoom = 1;
+  var inner = $("#wsInner"), canvas = $("#wsCanvas");
+  function applyT(){ inner.style.transform = "translate(" + pan.x + "px," + pan.y + "px) scale(" + zoom + ")"; }
+  applyT();
+  $$("[data-zoom]").forEach(function(b){
+    b.addEventListener("click", function(){
+      zoom = Math.min(1.6, Math.max(0.5, zoom + 0.1 * Number(b.dataset.zoom)));
+      zoom = Math.round(zoom * 10) / 10;
+      $("#zoomLabel").textContent = Math.round(zoom * 100) + "%";
+      applyT();
+    });
+  });
+  canvas.addEventListener("pointerdown", function(e){
+    if (e.target !== canvas && e.target !== inner && e.target.id !== "edges") return;
+    var sx = e.clientX - pan.x, sy = e.clientY - pan.y;
+    canvas.classList.add("panning");
+    canvas.setPointerCapture(e.pointerId);
+    function mv(e2){ pan.x = e2.clientX - sx; pan.y = e2.clientY - sy; applyT(); }
+    function up(){ canvas.classList.remove("panning"); canvas.removeEventListener("pointermove", mv); canvas.removeEventListener("pointerup", up); }
+    canvas.addEventListener("pointermove", mv);
+    canvas.addEventListener("pointerup", up);
+  });
+
+  var edgePairs = { e1: ["n-src","n-note1"], e2: ["n-note1","n-q"], e3: ["n-ai","n-out1"] };
+  function center(el){ return { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 }; }
+  function drawEdges(){
+    Object.keys(edgePairs).forEach(function(id){
+      var a = document.getElementById(edgePairs[id][0]);
+      var b = document.getElementById(edgePairs[id][1]);
+      var ln = document.getElementById(id);
+      if (!a || !b || !ln) return;
+      var ca = center(a), cb = center(b);
+      ln.setAttribute("x1", ca.x); ln.setAttribute("y1", ca.y);
+      ln.setAttribute("x2", cb.x); ln.setAttribute("y2", cb.y);
+    });
+  }
+  drawEdges();
+
+  var zTop = 10;
+  function makeDraggable(node){
+    node.addEventListener("pointerdown", function(e){
+      if (e.target.closest("button, a")) return;
+      var start = { x: e.clientX, y: e.clientY, l: node.offsetLeft, t: node.offsetTop };
+      node.setPointerCapture(e.pointerId);
+      node.classList.add("dragging");
+      node.style.zIndex = ++zTop;
+      function mv(e2){
+        node.style.left = (start.l + (e2.clientX - start.x) / zoom) + "px";
+        node.style.top  = (start.t + (e2.clientY - start.y) / zoom) + "px";
+        drawEdges();
+      }
+      function up(){ node.classList.remove("dragging"); node.removeEventListener("pointermove", mv); node.removeEventListener("pointerup", up); }
+      node.addEventListener("pointermove", mv);
+      node.addEventListener("pointerup", up);
+    });
+  }
+  $$(".node").forEach(makeDraggable);
+
+  /* ---------- generate menu ---------- */
+  $("#genBtn").addEventListener("click", function(){ $("#genMenu").hidden = !$("#genMenu").hidden; });
+  var genCount = 0;
+  $$("#genMenu button[data-gen]").forEach(function(b){
+    b.addEventListener("click", function(){
+      $("#genMenu").hidden = true;
+      genCount++;
+      var kind = b.dataset.gen;
+      var node = document.createElement("div");
+      node.className = "node output";
+      node.style.left = (1280 + genCount * 36) + "px";
+      node.style.top = (620 + genCount * 30) + "px";
+      node.innerHTML =
+        '<div class="node-head"><span class="eyebrow">Generated · ' + kind.toLowerCase() + '</span>' +
+        '<button class="vis" data-v="private" type="button">private</button></div>' +
+        '<div class="node-body"><p><b>' + kind + ' — whole Bridge</b></p>' +
+        '<p class="mono" style="color:var(--muted);margin-top:6px">Generating from 5 sources…</p></div>' +
+        '<div class="node-foot"><span class="pill analyzing">Analyzing</span></div>';
+      inner.appendChild(node);
+      makeDraggable(node);
+      logActivity(kind + " generation started from the whole Bridge.", "acc");
+      setTimeout(function(){
+        node.querySelector(".mono").textContent = "Ready · source-linked · inspectable";
+        node.querySelector(".node-foot").innerHTML =
+          '<button class="ev" type="button">⌕ research.pdf</button><button class="ev" type="button">⌕ PRD</button><button class="ev" type="button">⌕ +3 sources</button>';
+        logActivity(kind + " ready. Kept on canvas as a first-class object.", "ok");
+      }, 1600);
+    });
+  });
+
+  /* ---------- toast ---------- */
+  var toastTimer = null, toastEl = null;
+  function toast(msg){
+    if (toastEl) toastEl.remove();
+    toastEl = document.createElement("div");
+    toastEl.className = "toast"; toastEl.textContent = msg;
+    $("#app").appendChild(toastEl);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ if (toastEl) { toastEl.remove(); toastEl = null; } }, 2600);
+  }
+
+  /* esc closes overlays */
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeAll(); });
+})();
+</script>
+</body>
+</html>
