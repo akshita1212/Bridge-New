@@ -36,6 +36,7 @@ Bridge is inspired by NotebookLM, Obsidian, Figma, and Jira, but it is not a clo
 | [`docs/system-architecture.md`](docs/system-architecture.md) | Five subsystems: Mac client, source & sync backend, context engine, workspace state, generation orchestration | Engineering |
 | [`docs/data-model.md`](docs/data-model.md) | Core entities, statuses, visibility model, provenance | Engineering / AI |
 | [`docs/connector-specs.md`](docs/connector-specs.md) | Google Drive, Microsoft Graph, Figma, Jira connectors and change-detection flows | Integrations |
+| [`docs/context-space-teams.md`](docs/context-space-teams.md) | First slice: a project Context Space in Microsoft Teams with a Claude agent. User journey, setup questions, tools needed | Product / Design |
 
 ## Defining constraints (decisions, not vibes)
 
